@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Biodata Adam Sirin Maulana</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <!-- Preloader -->
+  <div id="preloader">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Navbar -->
+  <nav id="navbar">
+    <div class="container-nav">
+      <div class="nav-logo">Biodata Adam</div>
+      <ul class="nav-links">
+        <li><a href="#biodata">Biodata</a></li>
+        <li><a href="#about">Tentang Saya</a></li>
+        <li><a href="#contact">Kontak</a></li>
+      </ul>
+      <button id="darkModeToggle" aria-label="Toggle dark mode">🌙</button>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container">
+    <!-- Biodata -->
+    <section id="biodata">
+      <h2 class="title">Biodata Diri</h2>
+
+      <div class="photo">
+        <img src="adams.jpg" alt="Foto Profil Adam" class="circle-photo" />
+      </div>
+
+      <table class="biodata-table">
+        <tr>
+          <th>Nama</th>
+          <td>Adam Sirin Maulana</td>
+        </tr>
+        <tr>
+          <th>NIM</th>
+          <td>202409090</td>
+        </tr>
+        <tr>
+          <th>Tempat, Tanggal Lahir</th>
+          <td>Batu Banyak, 30 Juli 2001</td>
+        </tr>
+        <tr>
+          <th>Alamat</th>
+          <td>Malang, Jawa Timur</td>
+        </tr>
+        <tr>
+          <th>Program Studi</th>
+          <td>Rekamsiber TK 2</td>
+        </tr>
+        <tr>
+          <th>Hobi</th>
+          <td>Sepak Bola & Joging</td>
+        </tr>
+      </table>
+
+      <button class="print-button" onclick="window.print()">Cetak Biodata</button>
+    </section>
+
+    <!-- Tentang Saya -->
+    <section id="about" class="about">
+      <h2 class="title">Tentang Saya</h2>
+      <p>
+        Saya adalah seorang mahasiswa Cyber Security yang bersemangat belajar dan mengembangkan kemampuan
+        dalam bidang keamanan komputer. Saya memiliki minat yang besar dalam coding, analisis keamanan,
+        dan selalu ingin meningkatkan keterampilan saya melalui berbagai proyek dan pengalaman.
+      </p>
+    </section>
+
+    <!-- Kontak -->
+    <section id="contact" class="contact">
+      <h2 class="title">Kontak Saya</h2>
+
+      <div class="contact-links">
+        <a href="https://wa.me/62895415273100" target="_blank" class="btn whatsapp" rel="noopener noreferrer" aria-label="WhatsApp">
+          <i>📱</i> WhatsApp
+        </a>
+        <a href="mailto:adam.s.maulana06@gmail.com" class="btn email" aria-label="Email">
+          <i>📧</i> Email
+        </a>
+      </div>
+    </section>
+
+    <!-- Siapa Saya -->
+    <section class="siapa-saya-section">
+      <button id="toggleButton" class="toggle-button" aria-expanded="false" aria-controls="fotoContainer">Siapa Saya?</button>
+      <div id="fotoContainer" class="foto-container hidden" aria-hidden="true">
+        <img src="bravenpoltekad.jpeg" alt="Foto Braven Poltekad" />
+      </div>
+    </section>
+  </main>
+</body>
+</html>
