@@ -88,7 +88,7 @@ void handle_http(int conn, const char* method, const char* path, header_t* heade
     }
 
     const char* allowed_files[] = {
-        "index.html", "main.js", "websocket.js", "navigation.js", "crypto.js", "favicon.ico"
+        "index.html", "main.js", "websocket.js", "navigation.js", "crypto.js", "view.js", "favicon.ico"
     };
     int allowed_count = sizeof(allowed_files)/sizeof(allowed_files[0]);
 

@@ -1,5 +1,6 @@
 // websocket.js
 import { modPow, xor_decrypt } from './crypto.js';
+import { updateView } from './view.js'; // hanya impor dari view.js
 
 let ws = null;
 let priv = null;
@@ -37,12 +38,15 @@ export function connect(contentEl, onPageLoaded) {
         }
 
         if (msg.type === "page") {
-            let html = msg.html;
+            const cipherText = msg.html;
+            let plainText = cipherText;
             if (msg.encrypted) {
                 console.log("Proses Dekripsi");
-                html = xor_decrypt(html, seed);
+                plainText = xor_decrypt(cipherText, seed);
             }
-            contentEl.innerHTML = html;
+
+            // panggil view.js
+            updateView(plainText, cipherText);
             if (onPageLoaded) onPageLoaded();
         }
     };

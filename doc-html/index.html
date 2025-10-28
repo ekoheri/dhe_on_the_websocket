@@ -1,20 +1,81 @@
 <!DOCTYPE html>
 <html lang="id">
-    <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WS + HTTP (Raw Socket)</title>
     <style>
-        body { font-family: system-ui, sans-serif; margin: 2rem; }
-        #content { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; min-height: 80px; }
-        .row { margin: .5rem 0; }
-        button { padding: .5rem 1rem; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: system-ui, sans-serif;
+            background: #fafafa;
+        }
+
+        #panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between; /* kiri-kanan */
+            align-items: center;
+            padding: 1rem 2rem;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        #controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #controls label {
+            font-weight: 600;
+        }
+
+        #content {
+            position: absolute;
+            top: 70px; /* tinggi panel */
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 1rem;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .row {
+            margin: .5rem 0;
+        }
+
+        button {
+            padding: .5rem 1rem;
+        }
     </style>
-    </head>
-    <body>
-    <h1>Demo Navigasi via WebSocket</h1>
+</head>
+<body>
+    <div id="panel">
+        <div id="title">HTTP Custom Security</div>
+        <div id="controls">
+            <label>Pilih Tampilan:</label>
+            <label><input type="radio" name="mode" value="plaintext" checked> Plaintext</label>
+            <label><input type="radio" name="mode" value="ciphertext"> Ciphertext</label>
+        </div>
+    </div>
+
     <div id="content">Loading...</div>
 
     <script type="module" src="/main.js"></script>
-    </body>
+</body>
 </html>
