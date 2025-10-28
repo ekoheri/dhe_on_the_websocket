@@ -75,6 +75,10 @@ Atau jika port diubah di konfigurasi server, sesuaikan dengan nomor port yang di
 ├── python/           # Implementasi web server dengan Python
 │   ├── server.py
 │   └── ...
+├── doc-html/           # Implementasi web socket untuk program dekripsi dan menampilkan HTML di browser
+│   ├── index.html
+│   ├── main.js
+│   └── ...
 └── README.md
 ```
 
