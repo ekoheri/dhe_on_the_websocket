@@ -1,10 +1,12 @@
+import brotli
+import zlib
 import base64
 import hashlib
 import os
 import random
 import json
 from http_handler import http_response
-from crypto_handler import mod_exp, xor_encrypt
+from crypto_handler import mod_exp, xor_encrypt_bytes
 
 #DOCROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc-html")
 DOCROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "doc-html")
@@ -128,9 +130,10 @@ def handle_websocket(conn, headers):
                         server_pub = mod_exp(g, server_priv, p)
                         shared_secret = mod_exp(client_pub, server_priv, p)
                         
-                        print(f"  ** Private Key : {server_priv}")
-                        print(f"  ** Public Key : {server_pub}")
-                        print(f"  ** Kunci bersama : {shared_secret}")
+                        print("  ** Proses pertukaran kunci")
+                        print(f"  *** Private Key : {server_priv}")
+                        print(f"  *** Public Key : {server_pub}")
+                        print(f"  *** Kunci bersama : {shared_secret}")
 
                         ws_send_text(conn, json.dumps({
                             "type": "dhe",
@@ -153,10 +156,23 @@ def handle_websocket(conn, headers):
                                 body = f.read()
                             if encrypt_needed:
                                 seed = shared_secret % 1000
-                                body = xor_encrypt(body, seed)
+                                #compressed = brotli.compress(body.encode("utf-8"), quality=11)
+                                compressed = zlib.compress(body.encode("utf-8"))
+                                encrypted = xor_encrypt_bytes(compressed, seed)
+                                encoded_b64 = base64.b64encode(encrypted).decode("utf-8")
+
+                                # Hitung ukuran
+                                size_original = len(body.encode("utf-8"))
+                                size_compressed = len(compressed)
+                                size_encrypted = len(encrypted)
+                                size_b64 = len(encoded_b64.encode("utf-8"))
 
                                 print(f"  ** Proses enkripsi file : {file_path}")
-                            response = {"type": "page", "html": body, "encrypted": encrypt_needed}
+                                print(f"  *** Ukuran file asli       : {size_original} bytes ({size_original/1024:.2f} KB)")
+                                print(f"  *** Ukuran setelah kompresi: {size_compressed} bytes ({size_compressed/1024:.2f} KB)")
+                                print(f"  *** Ukuran setelah enkripsi: {size_encrypted} bytes ({size_encrypted/1024:.2f} KB)")
+                                print(f"  *** Ukuran setelah base64  : {size_b64} bytes ({size_b64/1024:.2f} KB)")
+                            response = {"type": "page", "html": encoded_b64, "encrypted": encrypt_needed}
                         except FileNotFoundError:
                             response = {"type": "page", "html": "<h2>404 Not Found</h2>"}
 

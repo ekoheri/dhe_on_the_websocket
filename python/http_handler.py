@@ -62,7 +62,7 @@ def handle_http(conn, method, path, headers):
         return
 
     # daftar file yang boleh dilayani lewat HTTP
-    allowed_files = {"index.html", "main.js", "websocket.js", "navigation.js", "crypto.js", "view.js", "favicon.ico"}
+    allowed_files = {"index.html", "main.js", "websocket.js", "navigation.js", "crypto.js", "view.js", "fflate.js","favicon.ico"}
 
     # normalisasi path
     if path == "/":

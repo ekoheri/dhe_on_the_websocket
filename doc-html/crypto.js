@@ -45,3 +45,15 @@ export function xor_decrypt(ciphertext, seed) {
 
     return plaintext_chars.join("");
 }
+
+export function xor_decrypt_bytes(cipherBytes, seed) {
+    const key_str = generate_key(seed, cipherBytes.length);
+    const key_digits = key_str.split("").map(ch => parseInt(ch, 10));
+
+    const plainBytes = new Uint8Array(cipherBytes.length);
+    for (let i = 0; i < cipherBytes.length; i++) {
+        plainBytes[i] = cipherBytes[i] ^ key_digits[i % key_digits.length];
+    }
+    return plainBytes; // hasilnya Uint8Array siap didekompres
+}
+
