@@ -39,6 +39,8 @@ def guess_mime(path):
         return "application/javascript; charset=utf-8"
     if path.endswith(".css"):
         return "text/css; charset=utf-8"
+    if path.endswith(".wasm"):
+        return "application/wasm"
     return "application/octet-stream"
 
 def http_response(status_code, reason, headers=None, body=b""):
@@ -62,7 +64,19 @@ def handle_http(conn, method, path, headers):
         return
 
     # daftar file yang boleh dilayani lewat HTTP
-    allowed_files = {"index.html", "main.js", "websocket.js", "navigation.js", "crypto.js", "view.js", "fflate.js","favicon.ico"}
+    allowed_files = {
+        "index.html", 
+        "main.js", 
+        "websocket.js", 
+        "navigation.js", 
+        "crypto.js", 
+        "view.js", 
+        "fflate.js",
+        "brotli_wasm_bg.wasm",
+        "brotli_wasm.js",
+        "brotli_web.js",
+        "favicon.ico"
+    }
 
     # normalisasi path
     if path == "/":

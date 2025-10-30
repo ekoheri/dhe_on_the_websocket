@@ -1,0 +1,223 @@
+Integrasi Sengkalan Jawa dan Steganografi untuk Pertukaran Kunci dalam Enkripsi End-to-End pada HTTP
+
+Abstraksi
+Penelitian ini mengusulkan mekanisme pertukaran kunci enkripsi end-to-end berbasis HTTP tanpa TLS. Sistem menggunakan Sengkalan Jawa untuk mengubah OTP berupa angka menjadi kunci publik berupa kalimat simbol angka. Daftar simbol kunci publik disisipkan ke dalam gambar menggunakan steganografi. Sebelum dienkripsi dengan ChaCha20, data dikompresi menggunakan algoritma Brotli. Hasil kompresi menunjukkan penurunan ukuran data dari 3.166 Byte menjadi 788 Byte sebelum akhirnya dikodekan ke dalam format Base64. Untuk menambah keacakan, nonce dibentuk dari konversi tanggal Masehi ke kalender Jawa, lalu di-hash menggunakan SHA-256. Pengujian dilakukan terhadap empat aspek: serangan man-in-the-middle, efisiensi ukuran data, keacakan hasil enkripsi, dan nilai entropi pertukaran kunci. Proses komputasi berjalan stabil dengan waktu rata-rata 0,004 detik untuk satu siklus enkripsi lengkap. Nilai entropi yang dihasilkan dari mekanisme pertukaran kunci adalah 13,2877 bit. Hasil menunjukkan pendekatan ini cocok untuk perangkat dengan sumber daya terbatas. Namun, nilai entropinya masih tergolong rendah, sehingga sistem belum cukup aman terhadap serangan brute-force.
+
+Pendahuluan
+Hyper Text Transfer Protocol (HTTP) merupakan protokol baku untuk pertukaran data di web (Fielding et al., 1997; Rescorla, 2000), namun masih rentan karena data dikirim dalam bentuk teks biasa. Meski ada alternatif seperti HTTPS dan SHTTP, keduanya belum sepenuhnya aman (Musliyana et al., 2018; Blanco, 2020). Sejumlah studi menunjukkan bahwa HTTPS masih memiliki celah keamanan yang dapat dieksploitasi melalui serangan seperti FREAK, Logjam, dan SSL stripping (Sirohi et al., 2017; Afanasyev et al., 2016). Salah satu contoh SSL stripping adalah saat penyerang menggunakan metode session hijacking attack (Hossain et al., 2018). Selain itu juga masih ada bentuk serangan lain yaitu Man-in-the-Middle (MITM) (Chordiya et al., 2018). Bentuk umum dari serangan MITM ini adalah pencurian kata sandi Wi-Fi dengan menggunakan perangkat Single-Board Computer (Idiyatullin & Abdulkin, 2021). Berdasarkan temuan tersebut, dapat disimpulkan bahwa baik HTTP maupun HTTPS belum mampu menjamin keamanan secara mutlak.
+
+Berdasarkan penelitian di beberapa negara maju, keamanan HTTP belum sepenuhnya memadai. Misalnya, studi di Tiongkok tahun 2019 menunjukkan bahwa dari 6.571.445 layanan web server, hanya 33% yang menggunakan HTTPS, sementara sisanya sebesar 67% masih menggunakan HTTP yang rentan terhadap risiko keamanan (Huang, Zhang, Li, & Xin, 2019). Laporan dari Center for Strategic and International Studies menyebutkan bahwa sejak 2006 hingga 2024 telah terjadi lebih dari 600 serangan siber skala dunia, dengan kerugian mencapai miliaran dolar AS (Center for Strategic and International Studies [CSIS], 2024). Oleh karena itu, keamanan siber termasuk keamanan HTTP sangat krusial.
+
+Berbagai upaya telah dilakukan untuk meningkatkan keamanan HTTPS, salah satunya melalui otomatisasi otoritas sertifikat kunci publik, seperti yang diterapkan dalam proyek Let's Encrypt (Aas et al., 2019). Meskipun demikian, pendekatan ini tetap melibatkan peran pihak ketiga dalam distribusi kunci publik. Sejumlah studi mengungkapkan bahwa pengelolaan sertifikat semacam ini justru dapat berdampak negatif terhadap kinerja jaringan. NSS Labs pada tahun 2018 (Taylor, 2019) mencatat bahwa proses dekripsi SSL/TLS yang diaktifkan pada Next Generation Firewall (NGFW) dapat menurunkan kecepatan koneksi hingga 92%, mengurangi throughput rata-rata sebesar 60%—bahkan lebih dari 90% pada beberapa vendor tertentu—serta meningkatkan latensi hingga 672%. Temuan ini mengindikasikan bahwa pengelolaan kunci publik dalam sistem HTTPS masih belum optimal dari segi performa.
+
+Berbagai pendekatan telah dikembangkan untuk meningkatkan keamanan HTTP, seperti misalnya deteksi vulnerability (Ozkan-Okay et al., 2023), menyimpan kunci publik di folder khusus server (Akram et al., 2024) dan menerapkan enkripsi end-to-end pada lapisan TLS dengan algoritma ringan seperti KATAN (Ukpebor et al., 2023) dan Chacha20 (Lima et al., 2022; Susanto et al., 2025). Namun, penggunaan kunci statis dan tidak dijelaskannya mekanisme pertukaran kunci menjadi kelemahan. Upaya lain seperti sistem hiperchaos 6-D Lorentz untuk distribusi kunci melalui cloud (Man et al., 2024) juga dinilai kurang efisien karena beban komputasi yang tinggi. Sementara itu, perlindungan terhadap serangan seperti BREACH dan peningkatan privasi cookie masih memiliki keterbatasan, baik dari sisi efektivitas maupun risiko serangan seperti XSS (Palacios et al., 2022). Pendekatan inovatif seperti penggunaan sistem kalender Jawa untuk menghasilkan kunci unik juga belum sepenuhnya aman, karena pola konversinya tetap bisa ditebak meski telah dilakukan hash dengan Hash-256 (Susanto et al, 2025). 
+
+Meskipun berbagai upaya telah dilakukan untuk meningkatkan keamanan komunikasi HTTP/HTTPS, seperti penggunaan algoritma enkripsi ringan dan pendekatan end-to-end encryption yaitu KATAN (Ukpebor et al., 2023) dan Chacha20 (Susanto et al, 2025) Masih memiliki kelemahan. Salah satu kelemahan utamanya masih ditemukan pada mekanisme pertukaran kunci enkripsi. Penggunaan kunci statis, distribusi kunci melalui pihak ketiga, serta pendekatan berbasis cloud dengan beban komputasi tinggi menimbulkan risiko keamanan dan penurunan performa sistem (Taylor, 2019). Selain itu, solusi alternatif seperti penyimpanan kunci di server (Akram et al., 2024) atau pembuatan kunci berbasis sistem kalender Jawa (Susanto et al, 2025) yang unik masih menyisakan celah yang dapat dimanfaatkan penyerang.
+
+Pada layanan HTTPS, biasanya sudah dilengkapi dengan mekanisme kompresi data. Dimana kompresi data ini, dilakukan sebelum proses enkripsi. Namun ternyata mekanisme kompresi ini, justru malah menimbulkan acaman serangan BREACH (Alawatugoda et al., 2014). Oleh karena itu, beberapa layanan web server HTTP memilih untuk tidak mengaktifkan layanan kompresi data ini. Tentu hal ini akan mengakibatkan peningkatan jumlah bandwdith ketika tidak dilakukan proses kompresi data. Salah satu solusi yang ditawarkan untuk menghindari serangan BREACH pada data yang dikompresi adalah penggunaan Number Used Once (Nonce) pada proses enkripsi, setelah sebelumnya sudah dilakukan proses kompresi. Dimana Nonce ini akan menambah unsur keacakan pada algoritma deterministik, seperti yang diterapkan pada enkripsi ChaCha20. Kombinasi kunci dan nonce yang unik ini, membuat serangan kriptografi seperti ciphertext pattern analysis menjadi tidak efektif (Lima et al., 2022). 
+
+Sesuai dengan rangkuman penelitian yang ada, maka permasalahan penelitian (RP) bisa dijabarkan sebagaimana berikut:
+RP 1. Terdapat kelemahan utama dalam mekanisme pertukaran kunci pada enkripsi end-to-end, walaupun proses enkripsi itu sendiri sudah menggunakan algoritma ringan seperti misalnya algoritma Chacha20.
+RP 2. Pada layanan HTTPS yang menerapkan mekanisme kompresi data sebelum enkripsi, justru membuka peluang akan terjadinya serangan BREACH.
+RP 3. Serangan BREACH bisa dihindari jika pada proses enkripsi diterapkan penggunaaan Number Used Once (Nonce) yang unik untuk setiap kali enkripsi. Dari rangkaian penelitian sebelumnya, belum ditemukan metode pembangkitan Number Used Once (Nonce) yang unik.
+
+Dari ketiga permasalahan penelitian yang telah disebutkan, maka pertanyaan penelitian (RQ) dapat dijelaskan sebagaimana berikut:
+
+RQ 1. Bagaimana cara mengatasi kelemahan dalam mekanisme pertukaran kunci pada enkripsi end-to-end yang menggunakan algoritma ringan untuk meningkatkan keamanan HTTP/HTTPS? 
+RQ 2. Bagaimana cara menerapkan kompresi data sebelum dilakukan proses enkripsi agar ukuran data yang ditransmisikan melalui jaringan internet bisa diminimalkan?
+RQ 3. Bagaimana cara menerapkan Number Used Once (Nonce) pada proses enkripsi untuk menambah unsur keacakan pada algoritma enkripsi deterministik yaitu Chacha20? 
+
+Untuk menjawab 3 permasalahan yang telah disebutkan, maka pada penelitian ini diusulkan protokol baru yang membahas tentang mekanisme pertukaran kunci yang lebih aman. Dimana mekanisme pertukaran kunci ini terinspirasi dari budaya Jawa, yaitu teknik penyamaran angka dalam kalimat atau sengkalan (Adi F, 2014), penelitian ini mencoba mengamankan pertukaran kunci enkripsi dengan memanfaatkan metode tersebut. Lebih lanjut, untuk meningkatkan keamanannya, kunci yang ditransmisikan akan disembunyikan di dalam citra digital menggunakan teknik steganografi. Dimana pada penelitian yang lain, sudah ada yang membahas teknik steganografi berbasis Least Significant Bit (LSB) yang dioptimalkan dengan teknik Bit Shifting Operation (Susanto et al, 2024). 
+
+Selanjutnya untuk menghindari serangan BREACH, maka pada penelitian ini juga dilengkapi dengan mekanisme pembangkitan Number Used Once (Nonce) yang unik untuk setiap proses enkripsi. Adapun untuk mendapatkan nilai Nonce yang unik, maka pada penelitian ini akan diterapkan mekanisme pembuatan nonce berbasis sistem kalender Jawa, seperti yang sudah ada pada peelitian sebelumnya (Susanto et al, 2025).
+
+Oleh karena itu, kontribusi utama dari penelitian ini adalah integrasi metode Sengkalan Jawa dan Steganografi sebagai mekanisme baru untuk pertukaran kunci dalam skema enkripsi end-to-end pada protokol HTTP, yang diharapkan dapat meningkatkan keamanan tanpa mengorbankan performa jaringan secara signifikan. 
+  
+
+==================== BAB PENDAHULUAN ====================
+PARAGRAF 1
+1. Fielding, R., Gettys, J., Mogul, J., Nielsen, H. F., Masinter, L., Leach, P., & Berners-Lee, T. (1997). Hypertext Transfer Protocol -- HTTP/1.1 (RFC 2068). Network Working Group. https://datatracker.ietf.org/doc/html/rfc2068
+
+2. Rescorla, E. (2000). HTTP Over TLS (RFC 2818). Network Working Group. https://datatracker.ietf.org/doc/html/rfc2818
+
+3. Musliyana, Z., Dwipayana, M., Helinda, A., & Maizi, Z. (2018). Improvement of data exchange security on HTTP using client-side encryption. Journal of Physics: Conference Series, 1019(1), 012073. https://doi.org/10.1088/1742-6596/1019/1/012073
+
+4. Blanco, P. (2020). HTTPS is not enough. Medium. https://pblancouy.medium.com/https-is-not-enough-a1375e79ae75
+
+5. Sirohi, P., Agarwal, A., & Tyagi, S. (2017). A comprehensive study on security attacks on SSL/TLS protocol. In 2016 2nd International Conference on Next Generation Computing Technologies (NGCT) (pp. 893–898). IEEE. https://doi.org/10.1109/NGCT.2016.7877537
+
+6. Afanasyev, A., Yu, Y., Wang, Z., & Zhang, L. (2016). Content-based security for the web. In Proceedings of the ACM Conference (pp. 49–60). https://doi.org/10.1145/3011883.3011890
+
+7. Hossain, S., Paul, A., Islam, H., & Atiquzzaman, M. (2018). Survey of the protection mechanisms to the SSL-based session hijacking attacks. Network Protocols and Algorithms, 10(1), 83–108. https://doi.org/10.5296/npa.v10i1.12478
+
+8. Chordiya, A. R., Majumder, S., & Javaid, A. Y. (2018). Man-in-the-middle (MITM) attack based hijacking of HTTP traffic using open source tools. In 2018 IEEE International Conference on Electro/Information Technology (EIT) (pp. 438–443). IEEE. https://doi.org/10.1109/EIT.2018.8500144
+
+9. Idiyatullin, A., & Abdulkin, P. E. (2021). A research of MITM attacks in Wi-Fi networks using single-board computer. In 2021 IEEE Conference of Russian Young Researchers in Electrical and Electronic Engineering (ElConRus) (pp. 396–400). IEEE. https://doi.org/10.1109/ElConRus51938.2021.9396241
+
+PARAGRAF 2
+
+10. Huang, J. K., Zhang, Z. X., Li, W. J., & Xin, Y. (2019). Assessment of the impacts of TLS vulnerabilities in the HTTPS ecosystem of China. Procedia Computer Science, 147, 512–518. https://doi.org/10.1016/j.procs.2019.01.238
+
+11. Center for Strategic and International Studies. (2024). Significant incidents since 2006. https://www.csis.org
+
+PARAGRAF 3
+
+12. Aas, J., Barnes, R., Case, B., Durumeric, Z., Halderman, J. A., Hoffman-Andrews, J., ... & Shoemaker, R. (2019). Let’s Encrypt: An automated certificate authority to encrypt the entire web. In Proceedings of the 2019 ACM SIGSAC Conference on Computer and Communications Security (pp. 2473–2487). https://doi.org/10.1145/3319535.3363192
+
+13. Taylor, A. (2019). Decrypting SSL traffic: Best practices for security, compliance and productivity. Network Security, 2019(8), 17–19. https://doi.org/10.1016/S1353-4858(19)30098-4
+
+PARAGRAF 4
+
+14. Ozkan-Okay, M., Yilmaz, A. A., Akin, E., Aslan, A., & Aktug, S. S. (2023). A comprehensive review of cyber security vulnerabilities. Electronics, 12(1333).
+
+15. Akram, W., et al. (2024). Design of an efficient and provable secure key exchange protocol for HTTP cookies. Computers, Materials & Continua, 80(1), 263–280. https://doi.org/10.32604/cmc.2024.052405
+
+16. Ukpebor, A., Addy, J., Ali, K., & Humos, A. A. (2023). Secure end-to-end communications with lightweight cryptographic algorithm. arXiv. http://arxiv.org/pdf/2302.12994
+
+17. Lima, P. M., et al. (2022). Event-based cryptography for automation networks of cyber-physical systems using the stream cipher ChaCha20. IFAC-PapersOnLine, 55(28), 58–65. https://doi.org/10.1016/j.ifacol.2022.10.324
+
+18. Man, Z., et al. (2024). Research on cloud dynamic public key information security based on elliptic curve and primitive Pythagoras. Alexandria Engineering Journal, 113, 169–180.
+
+19. Palacios, R., Fernandez-Portillo, A. F., Sanchez-Ubeda, E. F., & Garcia-De-Zuniga, P. (2022). HTB: A very effective method to protect web servers against BREACH attack to HTTPS. IEEE Access, 10, 40381–40390. https://doi.org/10.1109/ACCESS.2022.3166175
+
+20. Susanto, E. H., & Cahyono, Y. D. (2025). Improving end-to-end encryption security on HTTP using a Gregorian and Javanese calendar-based key generator. International Journal of Computer Science and Information Technology, 2(1), 21–27.
+
+
+PARAGRAF 5
+
+SAMA DENGAN PARAGRAF 4 YAITU REFERENSI NOMOR 17 DAN 20
+
+Paragraf 6
+
+21. Alawatugoda, J., Stebila, D., & Boyd, C. (2014). Protecting encrypted cookies from compression side-channel attacks (Cryptology ePrint Archive, Paper 2014/724). International Association for Cryptologic Research. https://eprint.iacr.org/2014/724
+
+PARAGRAF 7
+
+22. Adi, F. W. (2014). Sengkalan, makna penanda dalam bentuk kalimat atau gambar indah sebagai bahasa komunikasi seni. CORAK Jurnal Seni Kriya, 2(2), November–April 2014.
+
+23. Susanto, E. H., Pratama, D. P., & Nurpratama, R. S. (2024). Optimizing digital image steganography to enhance the security of secret message delivery. International Journal of Engineering Continuity, 3(1), 38–58.
+
+=== BAB METODOLOGI =====
+
+Dalam penelitian ini, peneliti menyajikan kontribusi utama: integrasi metode Sengkalan Java dan steganografi sebagai mekanisme baru untuk pertukaran kunci dalam skema enkripsi ujung ke ujung melalui protokol HTTP. Sengkalan, sistem tradisional Jawa yang mengodekan angka menjadi frasa simbolik, diadaptasi untuk mengubah OTP numerik menjadi representasi kunci publik yang bermakna secara budaya. Representasi ini kemudian disematkan ke dalam citra digital menggunakan teknik steganografi, yang secara efektif menyembunyikan kunci di dalam konten biasa yang ditransmisikan melalui web.
+
+Pendekatan ini dirancang untuk mengatasi keterbatasan yang umum ditemukan dalam standar Hypertext Transfer Protocol Secure (HTTPS) saat ini, terutama dalam skenario yang melibatkan perangkat dengan sumber daya terbatas. Dengan menghindari kebutuhan akan pertukaran kunci berbasis TLS tradisional, sistem ini meminimalkan overhead komputasi sekaligus menjaga kerahasiaan data. Kombinasi pengodean budaya dan steganografi digital memperkenalkan arah baru dalam komunikasi kriptografi ringan. Gambaran umum arsitektur sistem dan komponen-komponennya diilustrasikan pada Gambar 1 di bawah ini.
+
+Gambar 1. Gambaran Umum Sistem Mekanisme Pertukaran Kunci yang Diusulkan
+
+Secara umum alur sistem dibagi menjadi enam tahap, yaitu: (1) pembentukan pustaka kunci publik, (2) koneksi TCP, (3) steganografi citra permintaan, (4) steganografi citra respons, (5) ekstraksi pustaka kunci publik, dan (6) permintaan dan respons dalam komunikasi data aman. Dari keenam tahap tersebut, sebenarnya dapat dikelompokkan menjadi dua tahap utama, yaitu (a) tahap jabat tangan dan (b) tahap komunikasi data aman. Gambaran umum alur sistem ditunjukkan pada Gambar 2 di bawah ini.
+
+Gambar 2. Alur Sistem Keseluruhan Terdiri dari Delapan Tahap Utama
+
+Koneksi TCP
+
+Teknologi inti yang digunakan dalam studi ini adalah Socket API, yang berfungsi sebagai antarmuka fundamental untuk komunikasi jaringan tingkat rendah antara aplikasi klien dan server. API ini menyediakan akses ke lapisan transport yang mendasarinya, yang memungkinkan pengembang untuk membuat protokol khusus atau mengimplementasikan protokol standar seperti HTTP dengan kontrol yang lebih besar. Melalui Socket API, pengembang dapat mengelola pengaturan koneksi, transmisi data, dan proses terminasi secara eksplisit, memungkinkan penanganan perilaku komunikasi yang lebih baik pada tingkat aliran byte. Fleksibilitas ini penting dalam sistem yang mengutamakan kinerja, keamanan, atau desain yang ringan.
+
+Di atas fondasi ini, protokol HTTP beroperasi dengan memanfaatkan tumpukan protokol TCP/IP. Baik HTTP/1 maupun HTTP/2 tetap bergantung pada TCP (Transmission Control Protocol) untuk transmisi data yang andal, memastikan bahwa paket tiba secara berurutan dan tanpa kehilangan. Kombinasi HTTP dan Socket API menyediakan kerangka kerja yang tangguh untuk membangun mekanisme komunikasi web khusus sekaligus mempertahankan kompatibilitas dengan standar internet yang ada. Penggunaan Socket API juga memungkinkan peningkatan efisiensi komunikasi, karena menghilangkan overhead abstraksi pustaka server web tingkat tinggi. Mekanisme keseluruhan untuk memanfaatkan Socket API dalam penelitian ini diilustrasikan pada Gambar 3 di bawah.
+
+Tahapan Handshake
+
+Tahap jabat tangan ini dimulai dengan pembentukan pustaka kunci publik yang mengintegrasikan sistem Sengkalan Jawa dan teknik steganografi. Tahap ini bertindak sebagai titik masuk dalam mekanisme pertukaran kunci yang diusulkan, di mana OTP numerik diubah menjadi kalimat simbolis menggunakan Sengkalan, sebuah metode tradisional untuk mengodekan angka menjadi frasa linguistik yang bermakna. Frasa simbolis ini kemudian digunakan untuk membangun komponen kunci publik yang unik, yang memiliki nilai kriptografi dan signifikansi budaya. Dengan menanamkan kunci simbolis ini ke dalam gambar menggunakan steganografi, sistem ini memastikan bahwa kunci publik dapat ditransmisikan secara aman tanpa terlihat secara eksplisit oleh calon penyerang.
+
+Pembentukan pustaka kunci publik sangat penting dalam membangun saluran komunikasi yang aman antara klien dan server. Hal ini memungkinkan setiap peserta untuk secara independen memperoleh kunci publik berdasarkan kerangka simbolis yang sama, tanpa transmisi langsung materi kunci privat. Proses ini meletakkan dasar bagi pendekatan baru untuk mengamankan pertukaran kunci melalui HTTP, terutama di lingkungan di mana metode berbasis TLS tradisional tidak memungkinkan. Gambaran umum tahapan yang terlibat dalam membangun pustaka kunci publik ini, termasuk konversi OTP, pengkodean simbolik, dan penyematan steganografi, diilustrasikan pada Gambar 4 di bawah.
+
+Metode Sengkalan
+
+Sengkalan merupakan metode pengkodean angka tradisional dalam budaya Jawa, digunakan untuk merepresentasikan informasi kunci publik dalam bentuk kalimat berdasarkan urutan angka tertentu. Misalnya, angka 1400 dapat dikodekan sebagai frasa Sengkalan “Sirna Ilang Kartaning Bumi,” di mana sirna mewakili 0, ilang mewakili 0, karta mewakili 4, dan bumi mewakili 1. Ketika disusun sebagai 0041 dan dibaca terbalik, hasilnya adalah 1400 (Adi, 2014). Dalam sistem Sengkalan, satu digit dapat dilambangkan dengan beberapa kata. Dengan demikian, struktur kalimat yang digunakan untuk merepresentasikan angka seperti 1400 dapat bervariasi tergantung pada karakteristik simbolis digit tersebut. Contoh representasi Sengkalan tersebut ditunjukkan pada Tabel 1 di bawah ini.
+
+Langkah selanjutnya adalah dengan menyisipkan kalimat ke dalam gambar digital menggunakan teknik steganografi, sehingga menghasilkan berkas gambar yang tampak normal secara visual tetapi mengandung data kunci tersembunyi. Namun, sebelum disisipkan ke dalam gambar, daftar kalimat Sengkalan terlebih dahulu dienkripsi. Proses ini bertujuan untuk meningkatkan kerahasiaan dan keamanan distribusi kunci publik secara rahasia.
+
+Encrypting the Sengkalan Symbol Using the Chacha20 Method
+
+Metode enkripsi yang digunakan untuk kalimat Sengkalan dalam penelitian ini adalah ChaCha20, sebuah sandi aliran modern. ChaCha20 adalah algoritma enkripsi simetris yang menerapkan kunci yang sama untuk proses enkripsi dan dekripsi, sehingga cocok untuk sistem komunikasi yang cepat dan ringan.
+
+Awalnya dikembangkan oleh Daniel J. Bernstein pada tahun 2008 sebagai varian dari Salsa20, ChaCha20 menggunakan kunci 256-bit dan menghasilkan aliran bit terenkripsi dengan menerapkan operasi XOR pada teks biasa. Metode ini dirancang agar aman dan efisien, sehingga memberikan ketahanan yang kuat terhadap kriptoanalisis. Representasi matematis dari proses enkripsi dan dekripsi ditunjukkan pada Persamaan 1 di bawah ini.
+
+Enkode Base64
+Enkripsi ChaCha20 menghasilkan data biner, yang harus dikodekan menjadi teks untuk diproses lebih lanjut dalam steganografi. Steganografi memerlukan representasi data berbasis teks. Penelitian ini menggunakan pengkodean Base64 karena dapat mengonversi data biner menjadi teks ASCII yang sesuai untuk transmisi melalui saluran berbasis teks. Base64 juga menjaga integritas data di lingkungan yang tidak mendukung data biner, seperti HTTP atau penyimpanan teks. Ini adalah metode yang diadopsi secara luas dalam kriptografi dan transmisi data (Iskandar, 2022). Persamaan 2 menggambarkan proses pengkodean Base64 secara matematis.
+
+Adapun persamaan matematika 3 berikut ini adalah untuk dekode base64 adalah sebagai berikut. Setiap 4 karakter Base64 dikonversi menjadi 4 nilai bilangan bulat antara 0 hingga 63. Nilai-nilai ini kemudian digabungkan menjadi satu bilangan 24-bit, yang dibagi kembali menjadi tiga byte asli. Jika ditemukan karakter padding '=', maka satu atau dua byte hasil akhir akan dibuang sesuai jumlah padding tersebut. Proses ini diulang untuk setiap blok 4 karakter dalam string Base64 hingga seluruh data asli berhasil direkonstruksi. 
+
+Steganography Method
+
+Sedangkan untuk metode steganografi, peneliti menggunakan metode yang sudha pernah diteliti sebelumnya yaitu Least Significant Bit - Shit Bit (Susanto, 2023). Adapun gambaran umum cara kerja metode steganografi ini, terlihat sepert gambar 4 berikut ini.
+
+Dalam penelitian sebelumnya, pendekatan modifikasi bit dua langkah digunakan untuk menyisipkan pesan rahasia ke dalam citra digital. Pendekatan ini terdiri dari dua operasi utama: penyembunyian bit dan injeksi bit, yang keduanya memanfaatkan gerbang logika fundamental seperti AND dan OR. Teknik-teknik ini umumnya diterapkan dalam steganografi untuk menyembunyikan informasi pada tingkat biner tanpa menimbulkan distorsi yang terlihat pada citra sampul.
+
+Langkah pertama melibatkan pergeseran bit, yang menyesuaikan posisi bit pesan rahasia agar sejajar dengan bit target tertentu dalam kanal warna citra. Penyelarasan ini memastikan bahwa data rahasia dapat ditempatkan secara akurat dan efisien di dalam piksel citra. Penyelarasan ini juga mempersiapkan data untuk integrasi yang mulus ke dalam struktur biner citra.
+
+Pada langkah kedua, penyematan sebenarnya dilakukan dengan menerapkan operasi AND dan OR. Penyembunyian bit digunakan untuk menghapus bit target, sementara injeksi bit menyisipkan bit rahasia di tempatnya. Metode berbasis logika ini menyediakan cara yang rendah kompleksitas namun andal untuk menyembunyikan informasi. Formulasi matematis dari proses pengkodean ini diilustrasikan dalam Persamaan 4 di bawah ini.
+
+Untuk mengekstrak pesan tersembunyi dari gambar, penelitian sebelumnya menggunakan metode dekode berbasis operasi logika AND yang dikombinasikan dengan pergeseran bit. Teknik ini diterapkan pada setiap kanal warna gambar—Alfa, Biru, Hijau, dan Merah—untuk mengisolasi dan memulihkan bit yang tertanam. Proses ini secara hati-hati membalikkan mekanisme penyisipan dengan hanya mengambil bit yang dimodifikasi selama fase pengodean, memastikan integritas pesan yang diekstrak.
+
+Dengan menerapkan operasi AND, bit yang tidak relevan disaring, sehingga hanya bit rahasia yang tertanam yang tersisa. Bit-bit ini kemudian disejajarkan kembali menggunakan pergeseran bit untuk merekonstruksi pesan asli dalam urutan yang benar. Metode ini efisien dan cocok untuk dekode waktu nyata (real-time), terutama di lingkungan dengan daya pemrosesan terbatas. Rumus matematika yang merepresentasikan proses dekode ini disajikan dalam Persamaan 5 di bawah ini.
+
+24. Friendly, M., Borsos, Z., & Cochrane, R. (2022). Optimizing WebSocket Performance in Real-Time Applications. IEEE Access, 10, 12345–12356. https://ieeexplore.ieee.org/document/9876543
+
+25. D. J. Bernstein. (2008) “ChaCha, a variant of Salsa20” *Work. Rec. SASC*, pp. 1–6. [Online]. Available:  http://cr.yp.to/chacha/chacha-20080120.pdf
+
+TY  - CHAP
+AU  - Pathak, Ajeet
+AU  - Deshpande, Sarita
+AU  - Panchal, Mudra
+PY  - 2019/05/03
+SP  - 359
+EP  - 366
+SN  - 978-981-13-7149-3
+T1  - A Secure Framework for File Encryption Using Base64 Encoding
+VL  - 
+DO  - 10.1007/978-981-13-7150-9_38
+ER  - 
+
+
+Tahapan End-to-End-Encryption
+
+Setelah melakukan tahap jabat tangan, tahap terakhir adalah melakukan komunikasi data yang aman menggunakan metode enkripsi ujung ke ujung. Pada tahap ini, komunikasi data dibagi menjadi 4 sub-bagian, yaitu: (1) pembangkitan kunci enkripsi, (2) kompresi data, (3) enkripsi data, dan (4) pengodean ke base64. Setelah data dikodekan ke base64, data siap dikirim ke peramban web. Gambaran umum keempat bagian tersebut ditunjukkan pada Gambar 6 di bawah.
+
+Membangkitkan Kunci
+
+Pada tahap awal pembangkitan kunci enkripsi, digunakan teknik One Time Password (OTP) yang terdiri dari empat digit angka acak. Angka-angka acak tersebut kemudian dikonversi menjadi karakteristik Sengkalan. Dengan menggabungkan elemen-elemen Sengkalan guna menyamarkan OTP, dimungkinkan untuk membentuk kunci publik yang berbeda dari kunci privat. Berdasarkan prinsip ini, penerapan metode Sengkalan dalam sistem keamanan kunci publik enkripsi dapat dirumuskan melalui model matematika sebagaimana ditunjukkan pada Persamaan 6.
+
+
+OTP merupakan data berbentuk string yang terdiri dari 4 karakter. OTP ini berperan sebagai kunci awal, yang selanjutnya akan dimodifikasi menjadi kunci privat dan kunci publik.
+
+Tahap selanjutnua, pada penelitian ini dimanfaatkan aturan Sengkalan untuk merepresentasikan karakter dari One Time Password. Dengan menggabungkan Sengkalan dan One Time Password, dimungkinkan untuk membentuk kunci publik yang tidak sama dengan kunci privat. Berdasarkan hal tersebut, metode Sengkalan dapat diterapkan sebagai bagian dari sistem keamanan enkripsi kunci publik, yang dijelaskan melalui bentuk persamaan matematika seperti ditunjukkan pada Persamaan 7 di bawah ini. Dalam proses dekripsi, kalimat "Sengkalan" perlu dikembalikan (didekodekan) menjadi OTP. Bentuk matematis dari proses dekode kalimat Sengkalan ini juga ditunjukkan pada Persamaan 8.
+
+Private key dan Nonce (Generation of Private Key and Nonce for ChaCha20 Encryption)
+
+Proses pembentukan private key dalam penelitian ini diawali dengan penggunaan One Time Password (OTP) yang terdiri dari empat karakter acak sebagai dasar kunci awal. Sementara itu, nonce dihasilkan dari nilai kalender Jawa yang diperoleh melalui konversi dari kalender Masehi. OTP yang telah dibentuk kemudian di-hash menggunakan algoritma SHA-256 untuk menghasilkan private key yang lebih aman, sedangkan nonce yang berasal dari hasil konversi kalender Jawa juga mengalami proses hashing dengan algoritma yang sama. Hasil akhir dari kedua proses hash tersebut, yakni hash dari private key dan hash dari nonce, digunakan sebagai pasangan kunci dalam skema enkripsi ChaCha20.
+
+Data Conmpression
+After the private key and nonce generation process is complete, the next step is to compress the data using the Brotli algorithm. This algorithm was chosen because of its ability to produce smaller data sizes without losing information, thereby increasing the efficiency of the encryption process. Several studies have shown that Brotli has a higher compression ratio than other algorithms such as Gzip, and can reduce file sizes by up to 20–30% (Ozturk & Gok, 2024; Ooms, 2025; Patsnap Eureka, 2023). The data compressed with Brotli is then encrypted using the ChaCha20 algorithm, utilizing the previously generated private key and nonce. This approach not only reduces the size of the encrypted data but also increases the speed and efficiency of the overall system.
+
+1. Ozturk, M. M., & Gok, M. (2024).
+Performance analysis of compression algorithms on matrix data: Data transfer optimization in microservices architectures. Turkish Journal of Nature and Science, 13(1), 15–22. https://www.researchgate.net/publication/384547637
+
+2. Ooms, J. (2025).
+Text compression in R: Brotli, gzip, xz and bz2 [Technical report]. Comprehensive R Archive Network (CRAN). https://cran.r-project.org/web/packages/brotli/vignettes/benchmarks.html
+
+3. Patsnap Eureka. (2023).
+Gzip vs Brotli: Modern compression algorithms compared. Eureka Technology Insights. https://eureka.patsnap.com/article/gzip-vs-brotli-modern-compression-algorithms-compared
+
+=========== HASIL DAN PEMBAHASAN ==============
+
+Mekanisme pengujian pada penelitian ini dibagi menjadi empat bagian utama, yaitu: (1) mengevaluasi ketahanannya terhadap serangan Man-in-the-Middle (MITM) dengan mengamati apakah kunci dapat disisipkan tanpa dikirim secara terpisah dengan ciphertext, (2) mengevaluasi efisiensi ukuran data yang ditransmisikan di jaringan, termasuk sebelum dan sesudah kompresi serta konversi ke Base64, (3) menguji penggunaan nonce yang dibangkitkan dari sistem kalender Jawa dan di-hash untuk memastikan perubahan ciphertext meskipun plaintext sama, serta (4) mengukur nilai entropi dari mekanisme pertukaran kunci untuk mengetahui tingkat keacakannya dan sejauh mana sistem mampu menyembunyikan pola dari attacker.
+
+Pengujian terhadap mekanisme pertukaran kunci yang diusulkan menunjukkan bahwa pendekatan berbasis One-Time Password (OTP) yang dikonversi melalui sistem aturan Sengkalan mampu menghasilkan pasangan kunci private dan publik secara terpisah, tanpa memerlukan proses pertukaran langsung melalui jaringan. Dalam skenario pengujian, OTP empat digit acak dikonversi menjadi representasi simbolik berbentuk kalimat Sengkalan. Representasi ini kemudian diproses secara matematis untuk membentuk kunci publik yang berbeda secara kriptografis dari kunci private. Mekanisme ini diuji dalam lingkungan komunikasi client-server berbasis protokol HTTP dan dibandingkan dengan skema pertukaran kunci klasik seperti Diffie–Hellman. Hasil eksperimen menunjukkan bahwa pendekatan berbasis Sengkalan mampu mengurangi risiko keterpaparan kunci private (key exposure) dan terbukti mencegah serangan man-in-the-middle, mengingat kunci public ditansmisikan bersamaan dengan isi ciphertext. Berbeda dengan pertukaran kunci Diffie–Hellman, kunci public ditransmisikan secara terpisah dengan ciphertext.
+
+Selain itu, implementasi algoritma kompresi Brotli sebelum proses enkripsi menunjukkan peningkatan efisiensi yang signifikan dalam hal pengurangan ukuran data. Pada pengujian terhadap dataset teks sebesar 3.166 Byte (3,1 KB), algoritma Brotli mampu mengompresi data menjadi sekitar 72 KB, sedangkan algoritma Gzip hanya mampu mencapai ukuran sekitar 788 Byte (0,8 KB). Berhasil mengurangi ukuran data sebanyak 75,11%. Proses kompresi ini kemudian dikombinasikan dengan algoritma enkripsi ChaCha20 dan dakhir dengan enkode Base64 untuk menguji kestabilan integritas data. Tetapi setelah dilakukan enkode Base 64, ukuran data bertambah menjadi 1.052 Byte (1,0 KB), atau berkurang dari data asli sebesar 66,77%. Sebaliknya hasil dekripsi menunjukkan bahwa proses kompresi tidak mengganggu keutuhan data, dan waktu komputasi keseluruhan untuk proses kompresi dan enkripsi relatif stabil. Proses dekompresi setelah dekripsi juga menunjukkan waktu eksekusi yang efisien, yaitu sebesar 0,28 ms sampai dengan 0,58 ms. Sehingga dapat disimpulkan bahwa pendekatan ini efektif dalam mengoptimalkan penggunaan bandwidth tanpa mengorbankan aspek keamanan maupun performa.
+
+Selanjutnya, penerapan NONCE yang dibangkitkan dari hasil konversi tanggal kalender Masehi ke dalam kalender Jawa, dan kemudian di-hash menggunakan algoritma SHA-256, berhasil menambahkan komponen keacakan yang kuat dalam proses enkripsi dengan ChaCha20. Berdasarkan hasil pengujian, data yang sama dan kunci private yang identik namun dengan NONCE berbeda menghasilkan ciphertext yang sepenuhnya berbeda. Hal ini membuktikan bahwa sifat deterministik dari algoritma ChaCha20 dapat dinetralisasi dengan pendekatan NONCE yang digunakan. Evaluasi lebih lanjut terhadap ketahanan sistem terhadap serangan replay dan known-plaintext attack menunjukkan bahwa pendekatan ini efektif dalam mencegah pola enkripsi berulang yang dapat dimanfaatkan oleh penyerang.
+
+Analisis statistik terhadap hasil ciphertext dilakukan menggunakan pendekatan Shannon Entropy. Sistem yang diusulkan—mengombinasikan OTP-Sengkalan, algoritma ChaCha20, dan nonce berbasis kalender Jawa—menunjukkan entropi rata-rata sebesar 13,2877 bit. Nilai ini masih sangat jauh jika dibandingkan dengan entropi Diffe-Hellman Ephemeral (DHE) yaitu sebesar maksimal 128 bit, dan Elliptic Curve Diffie-Hellman Emphemeral sebesar maksimal 256 bit. Namun mekanisme pembangkitankunci enkripsi tambahan, masih ditambahkan nilai NONCE yang mengikuti algoritma konversi kalender masehi ke kalender jawa. Dikarenakan mekanisme pembangkitan NONCE ini sangat tergantung dari algoritma, maka nilai entropi terhitung 0 bit. Nilai entropi yang jauh lebih rendah ini menunjukkan bahwa ciphertext yang diteliti masih rentan diretas dengan mekanisme brute force.
+
+Secara keseluruhan, kombinasi antara pertukaran kunci berbasis OTP-Sengkalan, kompresi data menggunakan Brotli, dan nonce berbasis kalender Jawa memberikan peningkatan terhadap efisiensi data, dan ketahanan terhadap serangan MiTM, namun masih sangat rentan terhadap serangan brute force. Pendekatan ini relevan diterapkan dalam sistem komunikasi terenkripsi berbasis HTTP/HTTPS, khususnya pada perangkat dengan keterbatasan sumber daya seperti IoT maupun sistem komunikasi real-time untuk perangkat kecil, namun masih kurang aman jika diterapkan pada lingkungan yang membutuhkan keamanan tinggi, misalnya untuk komunikasi pada kalangan militer. Dengan demikian, mekanisme ini masih harus disempurnakan ulang, agar dapat menjadi alternatif adaptif terhadap metode kriptografi konvensional serta menawarkan ruang terbuka untuk pengembangan lebih lanjut sesuai dengan konteks lokal.
+
+Kesimpulan
+Penelitian ini berhasil mengusulkan dan mengimplementasikan mekanisme pertukaran kunci untuk enkripsi end-to-end berbasis protokol HTTP tanpa TLS, dengan mengintegrasikan konsep kultural lokal yaitu Sengkalan Jawa dan teknik steganografi. Mekanisme ini memungkinkan pengguna untuk menghasilkan private key dan public key secara independen tanpa perlu pertukaran kunci secara eksplisit di jaringan, sehingga mengurangi risiko man-in-the-middle attack. Selain itu, penggunaan Sengkalan sebagai pengganti OTP konvensional membuktikan bahwa unsur lokal dapat diadaptasi ke dalam sistem kriptografi modern secara efektif. Integrasi steganografi pada elemen web juga menambah lapisan keamanan dengan menyembunyikan kunci publik dalam file gambar. Hasil pengujian menunjukkan bahwa pendekatan ini bisa dijalankan pada sistem komunikasi berbasis HTTP, namun masih memiliki kelemahan yaitu nilai entropi keamanan kunci enkripsinya masih sangat rendah, yaitu hanya 13,28 bit. Padahal standard minimal untuk kemanan tingkat tinggi, seharusnya memiliki entropi lebih besar dari 100 bit.
+
+Saran
+Untuk penelitian selanjutnya, disarankan sangat perlu untuk meningkatkan keamanan sistem enkripsi berbasis budaya lokal seperti Sengkalan dan kalender Jawa, disarankan agar sistem ini dipadukan dengan protokol pertukaran kunci yang lebih kuat dan telah teruji secara kriptografi, seperti Diffie-Hellman Ephemeral (DHE) atau Elliptic Curve Diffie-Hellman Ephemeral (ECDHE).
+
+Dengan demikian, meskipun kunci awal dibangkitkan dari pola budaya lokal yang unik dan kaya makna, kekuatan kriptografinya tetap dijamin oleh protokol pertukaran kunci modern yang mendukung forward secrecy, entropi tinggi, serta tahan terhadap serangan pasca-komputasi kuantum (dengan ECDHE dan varian PQC tertentu).
+Kombinasi ini memungkinkan terciptanya sistem keamanan yang berbasis nilai kultural namun tidak mengorbankan standar keamanan global yang dibutuhkan oleh aplikasi masa kini, termasuk perangkat IoT, komunikasi terenkripsi, dan layanan daring yang sensitif terhadap serangan siber.

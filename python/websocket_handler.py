@@ -1,7 +1,9 @@
 import brotli
 import zlib
+import gzip
 import base64
 import hashlib
+import time
 import os
 import random
 import json
@@ -83,6 +85,12 @@ def ws_recv_frame(conn):
 
     return (opcode, payload)
 
+def compress_deflate_raw(text: str, level: int = 9) -> bytes:
+    # buat compressor dengan wbits negatif untuk raw deflate
+    comp = zlib.compressobj(level, zlib.DEFLATED, -zlib.MAX_WBITS)
+    data = text.encode("utf-8")
+    compressed = comp.compress(data) + comp.flush()
+    return compressed
 
 def handle_websocket(conn, headers):
     key = headers.get("sec-websocket-key")
@@ -150,14 +158,36 @@ def handle_websocket(conn, headers):
                         else:
                             file_path = os.path.join(DOCROOT, path.lstrip("/"))
 
+                        secure_type = msg.get("secure_type", 1)
                         try:
                             encrypt_needed = not (path in ["/", "/index.html", "/websocket.js"])
                             with open(file_path, "r", encoding="utf-8") as f:
                                 body = f.read()
                             if encrypt_needed:
                                 seed = shared_secret % 1000
-                                #compressed = brotli.compress(body.encode("utf-8"), quality=11)
-                                compressed = zlib.compress(body.encode("utf-8"))
+                                
+                                start_time = time.perf_counter()
+                                jenis_kompresi = ""
+                                if secure_type == 1:
+                                    # Ini compress dengan Brotli
+                                    compressed = brotli.compress(body.encode("utf-8"), quality=11)
+                                    jenis_kompresi = "Brotli"
+                                elif secure_type == 2:
+                                    # Ini compress dengan ZLIB
+                                    compressed = zlib.compress(body.encode("utf-8"))
+                                    jenis_kompresi = "Zlib"
+                                elif secure_type == 3:
+                                    # Kompresi Gzip mirip dengan zlib.compress()
+                                    compressed = gzip.compress(body.encode("utf-8"))
+                                    jenis_kompresi = "GZip"
+                                elif secure_type == 4:
+                                    # Kompresi Deflate Raw
+                                    compressed = compress_deflate_raw(body)
+                                    jenis_kompresi = "Deflate"
+                                # Selesai hitung waktu
+                                end_time = time.perf_counter()
+                                elapsed = end_time - start_time
+
                                 encrypted = xor_encrypt_bytes(compressed, seed)
                                 encoded_b64 = base64.b64encode(encrypted).decode("utf-8")
 
@@ -169,10 +199,12 @@ def handle_websocket(conn, headers):
 
                                 print(f"  ** Proses enkripsi file : {file_path}")
                                 print(f"  *** Ukuran file asli       : {size_original} bytes ({size_original/1024:.2f} KB)")
+                                print(f"  *** Jenis Kompresi : {jenis_kompresi}")
                                 print(f"  *** Ukuran setelah kompresi: {size_compressed} bytes ({size_compressed/1024:.2f} KB)")
+                                print(f"  *** Waktu Kompresi : {elapsed:.6f} detik")
                                 print(f"  *** Ukuran setelah enkripsi: {size_encrypted} bytes ({size_encrypted/1024:.2f} KB)")
                                 print(f"  *** Ukuran setelah base64  : {size_b64} bytes ({size_b64/1024:.2f} KB)")
-                            response = {"type": "page", "html": encoded_b64, "encrypted": encrypt_needed}
+                            response = {"type": "page", "html": encoded_b64, "encrypted": encrypt_needed, "secure_type": secure_type}
                         except FileNotFoundError:
                             response = {"type": "page", "html": "<h2>404 Not Found</h2>"}
 
