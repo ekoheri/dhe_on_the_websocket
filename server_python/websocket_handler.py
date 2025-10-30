@@ -182,8 +182,8 @@ def handle_websocket(conn, headers):
                                     compressed = compress_deflate_raw(body)
                                     jenis_kompresi = "Deflate"
                                 # Selesai hitung waktu
-                                end_time = time.perf_counter()
-                                elapsed = end_time - start_time
+                                
+                                elapsed = time.perf_counter() - start_time
 
                                 seed = shared_secret % 1000
                                 encrypted = xor_encrypt_bytes(compressed, seed)
