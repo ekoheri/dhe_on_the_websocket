@@ -1,7 +1,7 @@
 // crypto.js
 
 // modular exponentiation (Diffie-Hellman)
-export function modPow(base, exp, mod) {
+function modPow(base, exp, mod) {
     let result = 1n;
     let b = BigInt(base);
     let e = BigInt(exp);
@@ -14,8 +14,18 @@ export function modPow(base, exp, mod) {
     return result;
 }
 
+export function hitung_kunci_public(p, g){
+    const clientPriv = Math.floor(Math.random() * (p-2)) + 2;
+    const clientPub = Number(modPow(BigInt(g), BigInt(clientPriv), BigInt(p)));;//modPow(g, serverPriv, p);
+    return { clientPriv, clientPub };
+}
+
+export function hitung_shared_key(server_pub, client_priv, p) {
+    return Number(modPow(BigInt(server_pub), BigInt(client_priv), BigInt(p)));
+}
+
 // pseudo-random key generator
-export function generate_key(seed, length, a = 987654321, c = 1000, m = 526) {
+function hitung_lcg(seed, length, a = 987654321, c = 1000, m = 526) {
     let key_stream = [];
     key_stream.push(seed);
     let X = seed;
@@ -27,27 +37,8 @@ export function generate_key(seed, length, a = 987654321, c = 1000, m = 526) {
 }
 
 // XOR dekripsi
-export function xor_decrypt(ciphertext, seed) {
-    const key_str = generate_key(seed, ciphertext.length / 2);
-    console.log("Kunci Dekripsi Asli =", key_str);
-    const key_digits = key_str.split("").map(ch => parseInt(ch, 10));
-
-    let bytes_cipher = [];
-    for (let i = 0; i < ciphertext.length; i += 2) {
-        bytes_cipher.push(parseInt(ciphertext.substr(i, 2), 16));
-    }
-
-    let plaintext_chars = [];
-    for (let i = 0; i < bytes_cipher.length; i++) {
-        let ch = bytes_cipher[i] ^ key_digits[i % key_digits.length];
-        plaintext_chars.push(String.fromCharCode(ch));
-    }
-
-    return plaintext_chars.join("");
-}
-
 export function xor_decrypt_bytes(cipherBytes, seed) {
-    const key_str = generate_key(seed, cipherBytes.length);
+    const key_str = hitung_lcg(seed, cipherBytes.length);
     const key_digits = key_str.split("").map(ch => parseInt(ch, 10));
 
     const plainBytes = new Uint8Array(cipherBytes.length);

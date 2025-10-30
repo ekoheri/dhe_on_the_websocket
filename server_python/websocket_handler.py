@@ -5,10 +5,9 @@ import base64
 import hashlib
 import time
 import os
-import random
 import json
 from http_handler import http_response
-from crypto_handler import mod_exp, xor_encrypt_bytes
+from crypto_handler import hitung_public_key, hitung_shared_key, hitung_lcg, xor_encrypt_bytes
 
 #DOCROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc-html")
 DOCROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "doc-html")
@@ -134,9 +133,9 @@ def handle_websocket(conn, headers):
                         p = int(msg["p"])
                         g = int(msg["g"])
                         client_pub = int(msg["pub"])
-                        server_priv = random.randint(2, p - 2)
-                        server_pub = mod_exp(g, server_priv, p)
-                        shared_secret = mod_exp(client_pub, server_priv, p)
+                        #server_priv = random.randint(2, p - 2)
+                        server_priv, server_pub = hitung_public_key(p, g) #mod_exp(g, server_priv, p)
+                        shared_secret = hitung_shared_key(client_pub,server_priv, p)
                         
                         print("  ** Proses pertukaran kunci")
                         print(f"  *** Private Key : {server_priv}")
@@ -153,19 +152,17 @@ def handle_websocket(conn, headers):
 
                     if msg.get("type") == "get_page" and shared_secret is not None:
                         path = msg.get("path", "/")
-                        if path == "/" or path == "/index.html":
+                        if path == "/":
                             file_path = os.path.join(DOCROOT, "page1.html")
                         else:
                             file_path = os.path.join(DOCROOT, path.lstrip("/"))
 
                         secure_type = msg.get("secure_type", 1)
                         try:
-                            encrypt_needed = not (path in ["/", "/index.html", "/websocket.js"])
+                            encrypt_needed = True #not (path in ["/", "/index.html", "/websocket.js"])
                             with open(file_path, "r", encoding="utf-8") as f:
                                 body = f.read()
                             if encrypt_needed:
-                                seed = shared_secret % 1000
-                                
                                 start_time = time.perf_counter()
                                 jenis_kompresi = ""
                                 if secure_type == 1:
@@ -188,6 +185,7 @@ def handle_websocket(conn, headers):
                                 end_time = time.perf_counter()
                                 elapsed = end_time - start_time
 
+                                seed = shared_secret % 1000
                                 encrypted = xor_encrypt_bytes(compressed, seed)
                                 encoded_b64 = base64.b64encode(encrypted).decode("utf-8")
 
@@ -196,6 +194,7 @@ def handle_websocket(conn, headers):
                                 size_compressed = len(compressed)
                                 size_encrypted = len(encrypted)
                                 size_b64 = len(encoded_b64.encode("utf-8"))
+                                
 
                                 print(f"  ** Proses enkripsi file : {file_path}")
                                 print(f"  *** Ukuran file asli       : {size_original} bytes ({size_original/1024:.2f} KB)")
@@ -204,6 +203,11 @@ def handle_websocket(conn, headers):
                                 print(f"  *** Waktu Kompresi : {elapsed:.6f} detik")
                                 print(f"  *** Ukuran setelah enkripsi: {size_encrypted} bytes ({size_encrypted/1024:.2f} KB)")
                                 print(f"  *** Ukuran setelah base64  : {size_b64} bytes ({size_b64/1024:.2f} KB)")
+                                persen_k = ((size_b64 - size_original) / size_original) * 100
+                                if persen_k < 0:
+                                    print(f"      {abs(persen_k):.2f}% lebih kecil dari ukuran asli")
+                                else:
+                                    print(f"      {persen_k:.2f}% lebih besar dari ukuran asli")
                             response = {"type": "page", "html": encoded_b64, "encrypted": encrypt_needed, "secure_type": secure_type}
                         except FileNotFoundError:
                             response = {"type": "page", "html": "<h2>404 Not Found</h2>"}

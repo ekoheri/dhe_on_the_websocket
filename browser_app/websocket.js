@@ -1,11 +1,11 @@
 // websocket.js
-import { modPow, xor_decrypt_bytes } from './crypto.js';
+import { hitung_kunci_public, hitung_shared_key, xor_decrypt_bytes } from './crypto.js';
 import { decompressSync, strFromU8 } from "./fflate.js";
 import { compressBytes, decompressBytes } from './brotli_web.js';
-import { updateView } from './view.js'; // hanya impor dari view.js
+import { updateView } from './view.js'; 
 
 let ws = null;
-let priv = null;
+let client_private = null;
 let seed = null;
 
 let pendingPath = null;
@@ -18,15 +18,19 @@ export function requestPage(path) {
     const p = 23;
     const g = 2;
     
-    priv = Math.floor(Math.random() * (p-2)) + 2;
-    const client_pub = Number(modPow(BigInt(g), BigInt(priv), BigInt(p)));
+    //priv = Math.floor(Math.random() * (p-2)) + 2;
+    //const client_pub = Number(modPow(BigInt(g), BigInt(priv), BigInt(p)));
+
+
+    const { clientPriv, clientPub } = hitung_kunci_public(p, g);
+    client_private = clientPriv;
     console.log("Proses Pertukaran kunci");
-    console.log(" * Private Key =", priv);
-    console.log(" * Public Key =", client_pub);
+    console.log(" * Private Key =", client_private);
+    console.log(" * Public Key =", clientPub);
 
     pendingPath = path;
 
-    ws.send(JSON.stringify({ type: "dhe_init", p, g, pub: client_pub }));
+    ws.send(JSON.stringify({ type: "dhe_init", p, g, pub: clientPub }));
 }
 
 export function connect(contentEl, onPageLoaded) {
@@ -39,8 +43,6 @@ export function connect(contentEl, onPageLoaded) {
     jenis++;
     if (jenis > 4) jenis = 1;
     localStorage.setItem("jenis", jenis);
-
-    console.log("Jenis kompresi aktif:", jenis);
 
     ws.onopen = () => {
         // console.log('WS connected');
@@ -57,12 +59,10 @@ export function connect(contentEl, onPageLoaded) {
             const p = msg.p;
             const g = msg.g;
 
-            const shared_secret = Number(modPow(BigInt(server_pub), BigInt(priv), BigInt(p)));
+            const shared_secret = hitung_shared_key(server_pub, client_private, p); //Number(modPow(BigInt(server_pub), BigInt(priv), BigInt(p)));
             seed = shared_secret % 1000;
             
             console.log(" * Kunci bersama =", shared_secret);
-
-            //jenis = Math.floor(Math.random() * 2) + 1;
 
             ws.send(JSON.stringify({ type: "get_page", path: pendingPath, secure_type : jenis }));
             return;
@@ -80,10 +80,12 @@ export function connect(contentEl, onPageLoaded) {
                 
                 const decryptedBytes = xor_decrypt_bytes(cipherBytes, seed);
                 let plainBytes;
+
+                let startTime = performance.now(); // ⏱️ Mulai hitung waktu
                 try {
                     if(jenis == 1) {
                         // ini decompress dengan Brotli
-                        plainBytes = decompressBytes(decryptedBytes);
+                        plainBytes = await decompressBytes(decryptedBytes);
                         console.log(" * Decompress Brotli");
                     } else if(jenis == 2) {
                         // ini decompress dengan Zlib
@@ -105,6 +107,9 @@ export function connect(contentEl, onPageLoaded) {
                     console.error("Decompression failed:", err);
                 }
 
+                let endTime = performance.now(); // ⏱️ Selesai hitung waktu
+                const elapsed = (endTime - startTime) / 1000; 
+
                 // LOG UKURAN
                 const sizeCipher = b64Cipher.length;
                 const sizeDecrypted = decryptedBytes.length;
@@ -113,6 +118,7 @@ export function connect(contentEl, onPageLoaded) {
                 console.log(` * Ukuran cipher B64 : ${sizeCipher} bytes (${(sizeCipher/1024).toFixed(2)} KB)`);
                 console.log(` * Ukuran decrypted  : ${sizeDecrypted} bytes (${(sizeDecrypted/1024).toFixed(2)} KB)`);
                 console.log(` * Ukuran decompress : ${sizePlain} bytes (${(sizePlain/1024).toFixed(2)} KB)`);
+                console.log(` * Waktu dekompresi  : ${elapsed.toFixed(6)} detik`);
             }
 
             // panggil view.js

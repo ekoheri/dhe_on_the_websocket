@@ -1,7 +1,7 @@
 import os
 
 #DOCROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc-html")
-DOCROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "doc-html")
+DOCROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "browser_app")
 
 def read_http_request(conn):
     data = b""
