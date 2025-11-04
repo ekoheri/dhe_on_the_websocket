@@ -83,7 +83,7 @@ Atau jika port diubah di konfigurasi server, sesuaikan dengan nomor port yang di
 │   └── ...
 ├── doc-html/              # Sampling data HTML
 │   ├── page1.html
-│   ├── page2.js
+│   ├── page2.html
 │   └── ...
 └── README.md
 ```
