@@ -75,6 +75,7 @@ def handle_http(conn, method, path, headers):
         "brotli_wasm_bg.wasm",
         "brotli_wasm.js",
         "brotli_web.js",
+        "chacha20.js",
         "favicon.ico"
     }
 

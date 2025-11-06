@@ -1,6 +1,8 @@
 // crypto.js
 
 // modular exponentiation (Diffie-Hellman)
+import { chacha20XOR } from './chacha20.js';
+
 function modPow(base, exp, mod) {
     let result = 1n;
     let b = BigInt(base);
@@ -36,6 +38,16 @@ function hitung_lcg(seed, length, a = 987654321, c = 1000, m = 526) {
     return key_stream.map(num => String(num)).join("");
 }
 
+function hitung_lcg_bytes(seed, length, a = 1664525n, c = 1013904223n, m = 2n ** 32n) {
+    let X = BigInt(seed);
+    const out = new Uint8Array(length);
+    for (let i = 0; i < length; i++) {
+        X = (a * X + c) % m;
+        out[i] = Number(X & 0xFFn); // ambil 1 byte
+    }
+    return out;
+}
+
 // XOR dekripsi
 export function xor_decrypt_bytes(cipherBytes, seed) {
     const key_str = hitung_lcg(seed, cipherBytes.length);
@@ -48,3 +60,10 @@ export function xor_decrypt_bytes(cipherBytes, seed) {
     return plainBytes; // hasilnya Uint8Array siap didekompres
 }
 
+export function chacha20_decrypt(cipherBytes, seed) {
+    const lcg48 = hitung_lcg_bytes(seed, 48);
+    const key = lcg48.slice(0, 32);   // 32-byte key
+    const nonce = lcg48.slice(32);    // 16-byte nonce
+
+    return chacha20XOR(cipherBytes, key, nonce);
+}

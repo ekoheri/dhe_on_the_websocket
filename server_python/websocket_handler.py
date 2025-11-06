@@ -7,7 +7,7 @@ import time
 import os
 import json
 from http_handler import http_response
-from crypto_handler import hitung_public_key, hitung_shared_key, hitung_lcg, xor_encrypt_bytes
+from crypto_handler import hitung_public_key, hitung_shared_key, hitung_lcg, xor_encrypt_bytes, chacha_encrypt_byte
 
 #DOCROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc-html")
 DOCROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "doc-html")
@@ -159,6 +159,11 @@ def handle_websocket(conn, headers):
 
                         secure_type = msg.get("secure_type", 1)
                         try:
+                            #proses :
+                            # 1. Cara Plaintext
+                            # 2. Compress
+                            # 3. Encrypt
+                            # 4. Encode Base64 
                             encrypt_needed = True #not (path in ["/", "/index.html", "/websocket.js"])
                             with open(file_path, "r", encoding="utf-8") as f:
                                 body = f.read()
@@ -186,7 +191,8 @@ def handle_websocket(conn, headers):
                                 elapsed = time.perf_counter() - start_time
 
                                 seed = shared_secret % 1000
-                                encrypted = xor_encrypt_bytes(compressed, seed)
+                                # encrypted = xor_encrypt_bytes(compressed, seed)
+                                encrypted = chacha_encrypt_byte(compressed, seed)
                                 encoded_b64 = base64.b64encode(encrypted).decode("utf-8")
 
                                 # Hitung ukuran

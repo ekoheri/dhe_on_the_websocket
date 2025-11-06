@@ -1,5 +1,5 @@
 // websocket.js
-import { hitung_kunci_public, hitung_shared_key, xor_decrypt_bytes } from './crypto.js';
+import { hitung_kunci_public, hitung_shared_key, xor_decrypt_bytes, chacha20_decrypt } from './crypto.js';
 import { decompressSync, strFromU8 } from "./fflate.js";
 import { compressBytes, decompressBytes } from './brotli_web.js';
 import { updateView } from './view.js'; 
@@ -78,7 +78,8 @@ export function connect(contentEl, onPageLoaded) {
                 jenis = Number(msg.secure_type);
                 const cipherBytes = decodeBase64(b64Cipher);
                 
-                const decryptedBytes = xor_decrypt_bytes(cipherBytes, seed);
+                //const decryptedBytes = xor_decrypt_bytes(cipherBytes, seed);
+                const decryptedBytes = chacha20_decrypt(cipherBytes, seed);
                 let plainBytes;
 
                 let startTime = performance.now(); // ⏱️ Mulai hitung waktu

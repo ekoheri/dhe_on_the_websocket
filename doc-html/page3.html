@@ -1,102 +1,146 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Biodata Adam Sirin Maulana</title>
-  <link rel="stylesheet" href="style.css" />
-  <script defer src="script.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Login</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-color: #ffffff;
+      --accent: #2563eb;
+      --text-color: #1e293b;
+      --muted: #94a3b8;
+      --radius: 14px;
+      --shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .login-card {
+      background-color: var(--card-color);
+      padding: 40px 35px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 400px;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    .login-card h2 {
+      text-align: center;
+      color: var(--text-color);
+      margin-bottom: 10px;
+      font-size: 28px;
+      letter-spacing: 0.5px;
+    }
+
+    .login-card p {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 25px;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      color: var(--text-color);
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: 1px solid #cbd5e1;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.3s ease;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    .extra-links {
+      text-align: center;
+      margin-top: 18px;
+    }
+
+    .extra-links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.3s ease;
+    }
+
+    .extra-links a:hover {
+      color: #1e40af;
+      text-decoration: underline;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
 </head>
 <body>
-  <!-- Preloader -->
-  <div id="preloader">
-    <div class="spinner"></div>
+  <div class="login-card">
+    <h2>Selamat Datang</h2>
+    <p>Silakan login ke akun Anda</p>
+    <form>
+      <div class="form-group">
+        <label for="username">Nama Pengguna</label>
+        <input type="text" id="username" name="username" placeholder="Masukkan nama pengguna" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Kata Sandi</label>
+        <input type="password" id="password" name="password" placeholder="Masukkan kata sandi" required>
+      </div>
+      <button type="submit" class="btn">Login</button>
+      <div class="extra-links">
+        <a href="page2.html">Lupa kata sandi?</a><br>
+        <a href="page2.html">Belum punya akun? Daftar</a>
+      </div>
+    </form>
   </div>
-
-  <!-- Navbar -->
-  <nav id="navbar">
-    <div class="container-nav">
-      <div class="nav-logo">Biodata Adam</div>
-      <ul class="nav-links">
-        <li><a href="#biodata">Biodata</a></li>
-        <li><a href="#about">Tentang Saya</a></li>
-        <li><a href="#contact">Kontak</a></li>
-      </ul>
-      <button id="darkModeToggle" aria-label="Toggle dark mode">🌙</button>
-    </div>
-  </nav>
-
-  <!-- Main Container -->
-  <main class="container">
-    <!-- Biodata -->
-    <section id="biodata">
-      <h2 class="title">Biodata Diri</h2>
-
-      <div class="photo">
-        <img src="adams.jpg" alt="Foto Profil Adam" class="circle-photo" />
-      </div>
-
-      <table class="biodata-table">
-        <tr>
-          <th>Nama</th>
-          <td>Adam Sirin Maulana</td>
-        </tr>
-        <tr>
-          <th>NIM</th>
-          <td>202409090</td>
-        </tr>
-        <tr>
-          <th>Tempat, Tanggal Lahir</th>
-          <td>Batu Banyak, 30 Juli 2001</td>
-        </tr>
-        <tr>
-          <th>Alamat</th>
-          <td>Malang, Jawa Timur</td>
-        </tr>
-        <tr>
-          <th>Program Studi</th>
-          <td>Rekamsiber TK 2</td>
-        </tr>
-        <tr>
-          <th>Hobi</th>
-          <td>Sepak Bola & Joging</td>
-        </tr>
-      </table>
-
-      <button class="print-button" onclick="window.print()">Cetak Biodata</button>
-    </section>
-
-    <!-- Tentang Saya -->
-    <section id="about" class="about">
-      <h2 class="title">Tentang Saya</h2>
-      <p>
-        Saya adalah seorang mahasiswa Cyber Security yang bersemangat belajar dan mengembangkan kemampuan
-        dalam bidang keamanan komputer. Saya memiliki minat yang besar dalam coding, analisis keamanan,
-        dan selalu ingin meningkatkan keterampilan saya melalui berbagai proyek dan pengalaman.
-      </p>
-    </section>
-
-    <!-- Kontak -->
-    <section id="contact" class="contact">
-      <h2 class="title">Kontak Saya</h2>
-
-      <div class="contact-links">
-        <a href="https://wa.me/62895415273100" target="_blank" class="btn whatsapp" rel="noopener noreferrer" aria-label="WhatsApp">
-          <i>📱</i> WhatsApp
-        </a>
-        <a href="mailto:adam.s.maulana06@gmail.com" class="btn email" aria-label="Email">
-          <i>📧</i> Email
-        </a>
-      </div>
-    </section>
-
-    <!-- Siapa Saya -->
-    <section class="siapa-saya-section">
-      <button id="toggleButton" class="toggle-button" aria-expanded="false" aria-controls="fotoContainer">Siapa Saya?</button>
-      <div id="fotoContainer" class="foto-container hidden" aria-hidden="true">
-        <img src="bravenpoltekad.jpeg" alt="Foto Braven Poltekad" />
-      </div>
-    </section>
-  </main>
 </body>
 </html>
