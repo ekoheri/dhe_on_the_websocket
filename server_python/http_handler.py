@@ -69,13 +69,13 @@ def handle_http(conn, method, path, headers):
         "main.js", 
         "websocket.js", 
         "navigation.js", 
-        "crypto.js", 
         "view.js", 
-        "fflate.js",
-        "brotli_wasm_bg.wasm",
-        "brotli_wasm.js",
-        "brotli_web.js",
-        "chacha20.js",
+        "crypto_dhe.js", 
+        "crypto_chacha20.js",
+        "compress_fflate.js",
+        "compress_brotli_wasm_bg.wasm",
+        "compress_brotli_wasm.js",
+        "compress_brotli_web.js",
         "favicon.ico"
     }
 

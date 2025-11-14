@@ -1,5 +1,5 @@
 // --- Bagian inisialisasi Brotli WASM tanpa index.web.js ---
-import init, * as brotliWasm from "./brotli_wasm.js";
+import init, * as brotliWasm from "./compress_brotli_wasm.js";
 
 let brotliReady = null;
 

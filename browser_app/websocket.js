@@ -1,12 +1,21 @@
 // websocket.js
-import { hitung_kunci_public, hitung_shared_key, xor_decrypt_bytes, chacha20_decrypt } from './crypto.js';
-import { decompressSync, strFromU8 } from "./fflate.js";
-import { compressBytes, decompressBytes } from './brotli_web.js';
+import { 
+    hitung_kunci_public, 
+    hitung_shared_key, 
+    prime, 
+    generator, 
+    deriveKeyNonce, 
+    uint8ArrayToHex 
+} from './crypto_dhe.js';
+
+import { chacha20XOR } from './crypto_chacha20.js';
+import { decompressSync, strFromU8 } from "./compress_fflate.js";
+import { decompressBytes } from './compress_brotli_web.js';
 import { updateView } from './view.js'; 
 
 let ws = null;
 let client_private = null;
-let seed = null;
+let shared_secret = null;
 
 let pendingPath = null;
 
@@ -15,13 +24,9 @@ function decodeBase64(b64) {
 }
 
 export function requestPage(path) {
-    const p = 23;
-    const g = 2;
+    const p = prime;
+    const g = generator;
     
-    //priv = Math.floor(Math.random() * (p-2)) + 2;
-    //const client_pub = Number(modPow(BigInt(g), BigInt(priv), BigInt(p)));
-
-
     const { clientPriv, clientPub } = hitung_kunci_public(p, g);
     client_private = clientPriv;
     console.log("Proses Pertukaran kunci");
@@ -29,11 +34,15 @@ export function requestPage(path) {
     console.log(" * Public Key =", clientPub);
 
     pendingPath = path;
-
-    ws.send(JSON.stringify({ type: "dhe_init", p, g, pub: clientPub }));
+    ws.send(JSON.stringify({ 
+        type: "dhe_init", 
+        p: p.toString(16), 
+        g: g.toString(16), 
+        pub: clientPub.toString(16) })
+    );
 }
 
-export function connect(contentEl, onPageLoaded) {
+export async function connect(contentEl, onPageLoaded) {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws`;
     ws = new WebSocket(url);
@@ -45,7 +54,6 @@ export function connect(contentEl, onPageLoaded) {
     localStorage.setItem("jenis", jenis);
 
     ws.onopen = () => {
-        // console.log('WS connected');
         // kalau URL root, fallback ke page1.html, selain itu ikuti pathname
         let initialPath = location.pathname === "/" ? "/page1.html" : location.pathname;
         requestPage(initialPath);
@@ -55,16 +63,19 @@ export function connect(contentEl, onPageLoaded) {
         const msg = JSON.parse(ev.data);
 
         if (msg.type === "dhe") {
-            const server_pub = msg.pub;
-            const p = msg.p;
-            const g = msg.g;
+            const server_pub_hex = msg.pub;
+            const p_hex = msg.p;
+            const g_hex = msg.g;
 
-            const shared_secret = hitung_shared_key(server_pub, client_private, p); //Number(modPow(BigInt(server_pub), BigInt(priv), BigInt(p)));
-            seed = shared_secret % 1000;
-            
+            shared_secret = hitung_shared_key(server_pub_hex, client_private, p_hex);
+           
             console.log(" * Kunci bersama =", shared_secret);
 
-            ws.send(JSON.stringify({ type: "get_page", path: pendingPath, secure_type : jenis }));
+            ws.send(JSON.stringify({ 
+                type: "get_page", 
+                path: pendingPath, 
+                secure_type : jenis })
+            );
             return;
         }
 
@@ -79,10 +90,25 @@ export function connect(contentEl, onPageLoaded) {
                 const cipherBytes = decodeBase64(b64Cipher);
                 
                 //const decryptedBytes = xor_decrypt_bytes(cipherBytes, seed);
-                const decryptedBytes = chacha20_decrypt(cipherBytes, seed);
+                const sharedSecretHex = shared_secret.toString(16);
+    
+                // Panggil fungsi KDF (deriveKeyNonce) yang sudah Anda buat
+                const { key, nonce } = await deriveKeyNonce(sharedSecretHex);
+                
+                if (key.length !== 32 || nonce.length !== 12) {
+                    console.error("Kesalahan: Panjang Key atau Nonce tidak sesuai (harus 32B/12B).");
+                    return new Uint8Array(0);
+                }
+
+                // Debugging: Pastikan Key dan Nonce sudah dalam format byte array
+                console.log(" * Kunci Enkripsi    : ", uint8ArrayToHex(key));
+                console.log(" * Nonce Enkripsi    : ", uint8ArrayToHex(nonce));
+                
+                const decryptedBytes = chacha20XOR(cipherBytes, key, nonce);
                 let plainBytes;
 
                 let startTime = performance.now(); // ⏱️ Mulai hitung waktu
+
                 try {
                     if(jenis == 1) {
                         // ini decompress dengan Brotli

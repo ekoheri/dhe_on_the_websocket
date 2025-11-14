@@ -7,7 +7,8 @@ import time
 import os
 import json
 from http_handler import http_response
-from crypto_handler import hitung_public_key, hitung_shared_key, hitung_lcg, xor_encrypt_bytes, chacha_encrypt_byte
+from crypto_dhe import hitung_public_key, hitung_shared_key, derive_key_nonce
+from crypto_chacha20 import chacha20_encrypt
 
 #DOCROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc-html")
 DOCROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "doc-html")
@@ -130,9 +131,18 @@ def handle_websocket(conn, headers):
                     print(f"Request via WebSocket {msg_type}")
                     print(" * Response via WebSocket")
                     if msg.get("type") == "dhe_init":
-                        p = int(msg["p"])
-                        g = int(msg["g"])
-                        client_pub = int(msg["pub"])
+                        p_hex = msg.get("p")
+                        g_hex = msg.get("g")
+                        client_pub_hex = msg.get("pub")
+
+                        # pastikan semuanya string
+                        if isinstance(p_hex, str) and isinstance(g_hex, str) and isinstance(client_pub_hex, str):
+                            p = int(p_hex, 16)
+                            g = int(g_hex, 16)
+                            client_pub = int(client_pub_hex, 16)
+                        else:
+                            raise ValueError("DHE values are not strings")
+                        
                         #server_priv = random.randint(2, p - 2)
                         server_priv, server_pub = hitung_public_key(p, g) #mod_exp(g, server_priv, p)
                         shared_secret = hitung_shared_key(client_pub,server_priv, p)
@@ -144,9 +154,9 @@ def handle_websocket(conn, headers):
 
                         ws_send_text(conn, json.dumps({
                             "type": "dhe",
-                            "p": p,
-                            "g": g,
-                            "pub": server_pub
+                            "p": hex(p)[2:],
+                            "g": hex(g)[2:],
+                            "pub": hex(server_pub)[2:]
                         }))
                         continue
 
@@ -169,7 +179,9 @@ def handle_websocket(conn, headers):
                                 body = f.read()
                             if encrypt_needed:
                                 start_time = time.perf_counter()
-                                jenis_kompresi = ""
+                                compressed = body.encode()
+                                
+                                enis_kompresi = ""
                                 if secure_type == 1:
                                     # Ini compress dengan Brotli
                                     compressed = brotli.compress(body.encode("utf-8"), quality=11)
@@ -187,12 +199,13 @@ def handle_websocket(conn, headers):
                                     compressed = compress_deflate_raw(body)
                                     jenis_kompresi = "Deflate"
                                 # Selesai hitung waktu
-                                
                                 elapsed = time.perf_counter() - start_time
 
-                                seed = shared_secret % 1000
+                                # seed = shared_secret % 1000
                                 # encrypted = xor_encrypt_bytes(compressed, seed)
-                                encrypted = chacha_encrypt_byte(compressed, seed)
+                                key, nonce = derive_key_nonce(shared_secret)
+                                
+                                encrypted = chacha20_encrypt(compressed, key, nonce)
                                 encoded_b64 = base64.b64encode(encrypted).decode("utf-8")
 
                                 # Hitung ukuran
@@ -201,8 +214,9 @@ def handle_websocket(conn, headers):
                                 size_encrypted = len(encrypted)
                                 size_b64 = len(encoded_b64.encode("utf-8"))
                                 
-
                                 print(f"  ** Proses enkripsi file : {file_path}")
+                                print(f"  *** Key            : {key.hex()} (16 Byte)")
+                                print(f"  *** Nonce          : {nonce.hex()} (12 byte)")
                                 print(f"  *** Ukuran file asli       : {size_original} bytes ({size_original/1024:.2f} KB)")
                                 print(f"  *** Jenis Kompresi : {jenis_kompresi}")
                                 print(f"  *** Ukuran setelah kompresi: {size_compressed} bytes ({size_compressed/1024:.2f} KB)")
